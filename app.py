@@ -1,4 +1,4 @@
-from asyncio.windows_events import NULL
+# from asyncio.windows_events import NULL
 import time
 from flask import Flask, jsonify, json
 from scrapper import get_data_hashtag, get_data_post
@@ -9,46 +9,51 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    hashtag_scrapes = get_data_hashtag("liverpool")
+    hashtag_scrapes = get_data_hashtag("timnasu19")
     hashtag_scrapes = hashtag_scrapes['graphql']['hashtag']['edge_hashtag_to_media']['edges']
     list_data = []
 
-    # post_scrape = get_data_post("Cflaa29tk48")
-    # post_scrape = post_scrape['items'][0]
+    hashtag = {}
+    hashtag['ID_DATASET'] = uuid.uuid4()
 
-    # post = {}
-    # post['SHORTCODE_DD']    = "sjfhrg"
-    # post['USERAME_DD']      = post_scrape['user']['username']
-    # post['DISPLAYURL_DD']   = post_scrape['image_versions2']['candidates'][0]['url']
-    # post['COUNTLIKE_DD']    = post_scrape['like_count']
-    # post['COUNTCOMMENT_DD'] = post_scrape['comment_count']
-    # post['CAPTION_DD']      = post_scrape['']
-    i = 0
     x = 1
-    for hashtag_scrape in hashtag_scrapes:
-        try:
-            # if i == 4:
-            #     i = 0
-            #     time.sleep(3)
-            #     if x == 20:
-            #         x = 1
-            #         time.sleep(5)
-
-            hashtag_scrape = hashtag_scrape['node']
+    counter = 0
+    total_hashtag_scrape = len(hashtag_scrapes)
+    print("Expected Total Data  : " + str(total_hashtag_scrape))
+    while counter < 3:
+        # try:
+            hashtag_scrape = hashtag_scrapes[counter]['node']
 
             post_scrape = get_data_post(hashtag_scrape['shortcode'])
             post_scrape = post_scrape['items'][0]
 
-            post = {}
-            post['SHORTCODE_DD']    = hashtag_scrape['shortcode']
-            post['USERNAME_DD']     = post_scrape['user']['username']
-            post['FULLNAME_DD']     = post_scrape['user']['full_name']
-            post['PROFILPICT_DD']     = post_scrape['user']['profile_pic_url']
-            # post['DISPLAYURL_DD']   = post_scrape['image_versions2']['candidates'][0]['url']
-            post['DISPLAYURL_DD']   = hashtag_scrape['display_url']
-            post['COUNTLIKE_DD']    = post_scrape['like_count']
-            post['COUNTCOMMENT_DD'] = post_scrape['comment_count']
-            post['CAPTION_DD']      = post_scrape['caption']['text']
+            curr_date    = datetime.now()
+
+            # post = {}
+            # post['ID_DATASET']      = hashtag['ID_DATASET']
+            # post['SHORTCODE_DD']    = hashtag_scrape['shortcode']
+            # post['USERNAME_DD']     = post_scrape['user']['username']
+            # post['FULLNAME_DD']     = post_scrape['user']['full_name']
+            # post['PROFILEPICT_DD']  = post_scrape['user']['profile_pic_url']
+            # post['DISPLAYURL_DD']   = hashtag_scrape['display_url']
+            # post['COUNTLIKE_DD']    = post_scrape['like_count']
+            # post['COUNTCOMMENT_DD'] = post_scrape['comment_count']
+            # post['CAPTION_DD']      = post_scrape['caption']['text']
+            # post['created_at']      = curr_date.strftime("%Y-%m-%d %H:%M:%S")
+            # post['updated_at']      = curr_date.strftime("%Y-%m-%d %H:%M:%S")
+
+            post = []
+            post.append(hashtag['ID_DATASET']) 
+            post.append(hashtag_scrape['shortcode']) 
+            post.append(post_scrape['user']['username']) 
+            post.append(post_scrape['user']['full_name']) 
+            post.append(post_scrape['user']['profile_pic_url']) 
+            post.append(hashtag_scrape['display_url']) 
+            post.append(post_scrape['like_count']) 
+            post.append(post_scrape['comment_count']) 
+            post.append(post_scrape['caption']['text']) 
+            post.append(curr_date.strftime("%Y-%m-%d %H:%M:%S")) 
+            post.append(curr_date.strftime("%Y-%m-%d %H:%M:%S")) 
 
             try:
                 list_tags = post_scrape['usertags']['in']
@@ -56,21 +61,22 @@ def index():
                 
                 for tag in list_tags:
                     tag_users.append(tag['user']['username'])
-                post['LISTTAG_DD'] = ';'.join(tag_users)
+                post.append(';'.join(tag_users))
             except:
-                post['LISTTAG_DD']      = None
+                post.append(None)
+            
+            post = tuple(post)
 
             json.dumps(post)
             list_data.append(post)
 
             print(x," | ",hashtag_scrape['shortcode'])
-            time.sleep(1)
-
-            
-            i = i + 1
+            time.sleep(1)            
             x = x + 1
-        except: 
-            return jsonify(list_data)
+        # except: 
+            # time.sleep(3)
+        
+            counter = counter + 1
 
     # return jsonify(hashtag_scrapes[0]['node']['shortcode'])
     return jsonify(list_data)
