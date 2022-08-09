@@ -1,5 +1,7 @@
 # from asyncio.windows_events import NULL
 import mysql.connector, urllib.request, time, json, ssl, random
+import networkx as nx
+import matplotlib.pyplot as plt
 from flask import Flask, jsonify, send_from_directory, request
 from scrapper import get_data_hashtag, get_data_post
 from datetime import datetime
@@ -224,7 +226,66 @@ def scrape(hashtag):
 
     return jsonify(list_data)
 
+@app.route("/tes")
+def tes():
+    mycursor = mydb.cursor()
+    graph = nx.Graph()
+    sql = """
+        SELECT USERNAME_DD, LISTTAGGED_DD FROM dataset_detail WHERE HASHTAG_DATASET = 'holywings' AND LISTTAGGED_DD != ""
+    """
+    mycursor.execute(sql)
 
+    list_post = mycursor.fetchall()
+
+    for list in list_post:
+        tags = list[1].split(';')
+        for tag in tags:
+            graph.add_edge(list[0], tag)
+    
+    plt.figure(figsize = (5, 5))
+    nx.draw_networkx(graph)
+    plt.savefig("graph/tes.png")
+    plt.show()
+    # return nx.draw(graph, with_labels = True)
+    return 'sukses'
+# @app.route('/update-dataset')
+# def update_dataset():
+#     mycursor = mydb.cursor()
+#     sql = """
+#         SELECT * FROM dataset
+#     """
+#     mycursor.execute(sql)
+#     hashtags = mycursor.fetchall()
+#     post_insert = []
+#     post_update = []
+#     for hashtag in hashtags:
+#         hashtag_scrapes = get_data_hashtag(hashtag[0])
+#         hashtag_scrapes = hashtag_scrapes['graphql']['hashtag']['edge_hashtag_to_media']['edges']
+
+#         mycursor = mydb.cursor()
+#         sql = """
+#             SELECT * FROM dataset_detail WHERE HASHTAG_DATASET = '"""+hashtag[0]+"""'
+#         """
+#         mycursor.execute(sql)
+
+#         list_post = mycursor.fetchall()
+#         posts = []
+#         for list in list_post:
+#             posts.append(list[1])
+        
+#         counter = 0
+#         for hashtag_scrape in hashtag_scrapes:
+#             post_scrape = get_data_post(hashtag_scrape['shortcode'])
+
+            
+#             if(hashtag_scrape['shortcode'] in posts[counter]):
+
+
+            
+
+
+    
+#     return "success"
 
 if __name__ == "__main__":
     app.run(debug=True)
