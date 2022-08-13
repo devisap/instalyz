@@ -23,6 +23,10 @@ def get_post_pic(filename):
 def get_profile_pic(filename): 
     return send_from_directory('img/post/', filename)
 
+@app.route('/upload-graph/<path:filename>') 
+def get_graph_pic(filename): 
+    return send_from_directory('graph/', filename)
+
 @app.route('/user-dataset/<username>')
 def user_dataset(username):
     mycursor = mydb.cursor()
@@ -48,6 +52,29 @@ def user_dataset(username):
         temp['TOTCOMMENT_DATASET']  = result[3]
         temp['created_at']          = result[4]
         temp['updated_at']          = result[5]
+        temp['IMGINFLUENCER_UD']    = result[10]
+        datas.append(temp)
+
+    return jsonify(datas)
+
+@app.route('/influencer/<id_ud>')
+def influencer(id_ud):
+    mycursor = mydb.cursor()
+    sql = """
+            SELECT *
+            FROM influencer i 
+            WHERE i.ID_UD = '"""+id_ud+"""'
+        """
+    mycursor.execute(sql)
+
+    results = mycursor.fetchall()
+    datas   = []
+    for result in results:
+        temp = {}
+        temp['ID_INFLUENCER']           = result[0]
+        temp['ID_UD']                   = result[1]
+        temp['USERNAME_INFLUENCER']     = result[2]
+        temp['ACCURACY_INFLUENCER']     = result[3]
         datas.append(temp)
 
     return jsonify(datas)
@@ -57,6 +84,7 @@ def user_setdataset():
     mycursor    = mydb.cursor()
     hashtag     = request.json['hashtag']
     username    = request.json['username']
+    id_ud       = username+"""_"""+hashtag
     
     # ===== DATASET IS EXISTS
     sql = """
@@ -80,15 +108,13 @@ def user_setdataset():
 
     if result == None:
         sql = """
-            INSERT INTO user_dataset (USERNAME_USER, HASHTAG_DATASET, COLOR_UD) VALUES (%s, %s, %s)
-            RETURNING ID_UD
+            INSERT INTO user_dataset (ID_UD, USERNAME_USER, HASHTAG_DATASET, COLOR_UD, IMGINFLUENCER_UD) VALUES (%s, %s, %s, %s, %s)
         """
         r = lambda: random.randint(0,255)
         color = '#%02X%02X%02X' % (r(),r(),r())
         
-        values = (username, hashtag, color)
-        result = mycursor.execute(sql, values)
-        id_ud = result.fetchone()
+        values = (id_ud, username, hashtag, color, id_ud)
+        mycursor.execute(sql, values)
         detectInfluence(hashtag, id_ud)
 
         mydb.commit()
@@ -248,9 +274,9 @@ def detectInfluence(hashtag, id_ud):
         for tag in tags:
             graph.add_edge(list[0], tag)
     
-    plt.figure(figsize = (10, 10))
+    plt.figure(figsize = (13, 7))
     nx.draw_networkx(graph)
-    plt.savefig("graph/"+hashtag+".png")
+    plt.savefig("graph/"+id_ud+".png")
     # plt.show()
 
     most_influental = nx.degree_centrality(graph)
