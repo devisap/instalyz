@@ -81,12 +81,16 @@ def user_setdataset():
     if result == None:
         sql = """
             INSERT INTO user_dataset (USERNAME_USER, HASHTAG_DATASET, COLOR_UD) VALUES (%s, %s, %s)
+            RETURNING ID_UD
         """
         r = lambda: random.randint(0,255)
         color = '#%02X%02X%02X' % (r(),r(),r())
         
         values = (username, hashtag, color)
-        mycursor.execute(sql, values)
+        result = mycursor.execute(sql, values)
+        id_ud = result.fetchone()
+        detectInfluence(hashtag, id_ud)
+
         mydb.commit()
     # END INSERT USER DATASET
     
@@ -207,6 +211,7 @@ def scrape(hashtag):
     """
     dataset = (dataset_hashtag, tot_post, tot_like, tot_comment, curr_date.strftime("%Y-%m-%d %H:%M:%S"), curr_date.strftime("%Y-%m-%d %H:%M:%S"))
     mycursor.execute(sql, dataset)
+
     mydb.commit()
 
     sql = """
@@ -224,14 +229,15 @@ def scrape(hashtag):
     mycursor.execute(sql)
     mydb.commit()
 
+    
     return jsonify(list_data)
 
-@app.route("/tes")
-def tes():
+@app.route("/detectInfluence/<hashtag>/<id_ud>")
+def detectInfluence(hashtag, id_ud):
     mycursor = mydb.cursor()
     graph = nx.Graph()
     sql = """
-        SELECT USERNAME_DD, LISTTAGGED_DD FROM dataset_detail WHERE HASHTAG_DATASET = 'holywings' AND LISTTAGGED_DD != ""
+        SELECT USERNAME_DD, LISTTAGGED_DD FROM dataset_detail WHERE HASHTAG_DATASET = '"""+hashtag+"""' AND LISTTAGGED_DD != ""
     """
     mycursor.execute(sql)
 
@@ -242,12 +248,42 @@ def tes():
         for tag in tags:
             graph.add_edge(list[0], tag)
     
-    plt.figure(figsize = (5, 5))
+    plt.figure(figsize = (10, 10))
     nx.draw_networkx(graph)
-    plt.savefig("graph/tes.png")
-    plt.show()
+    plt.savefig("graph/"+hashtag+".png")
+    # plt.show()
+
+    most_influental = nx.degree_centrality(graph)
+    list_data = []
+    counter = 1
+    for w in sorted(most_influental, key = most_influental.get, reverse = True):
+        post = []
+        post.append(id_ud)
+        post.append(w)
+        post.append(round(most_influental[w],5))
+        post = tuple(post)
+        list_data.append(post)
+
+        if counter == 10:
+            break
+        
+        counter+=1
+    
+    values  = ', '.join(map(str, list_data))
+    sql = """
+        INSERT INTO 
+            influencer
+                (
+                    ID_UD, USERNAME_INFLUENCER, ACCURACY_INFLUENCER
+                ) 
+            VALUES {}
+    """.format(values)
+    
+    mycursor.execute(sql)
+    mydb.commit()
     # return nx.draw(graph, with_labels = True)
-    return 'sukses'
+    return most_influental
+
 # @app.route('/update-dataset')
 # def update_dataset():
 #     mycursor = mydb.cursor()
