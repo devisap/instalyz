@@ -15,6 +15,82 @@ mydb = mysql.connector.connect(
 
 app = Flask('__name__')
 
+@app.post('/register')
+def register():
+    mycursor    = mydb.cursor()
+    email       = request.json['email']
+    username    = request.json['username']
+    name        = request.json['name']
+    password    = request.json['password']
+    response    = []
+    
+    # ===== DATASET IS EXISTS
+    sql = """
+        SELECT * FROM user
+        WHERE USERNAME_USER = '"""+username+"""'
+    """
+    mycursor.execute(sql)
+    result = mycursor.fetchone()
+
+    
+    if result != None:
+        res = {}
+        res['stat'] = "0"
+        res['msg']  = 'Username alredy exists'
+        response.append(res)
+
+        return jsonify(response)
+    
+    sql = """
+            INSERT INTO user (USERNAME_USER, NAME_USER, PASSWORD_USER, EMAIL_USER) VALUES (%s, %s, %s, %s)
+        """ 
+    values = (username, name, password, email)
+    mycursor.execute(sql, values)
+    mydb.commit()
+
+    res = {}
+    res['stat'] = "1"
+    res['msg']  = 'Successfully Register'
+    response.append(res)
+    return jsonify(response)
+
+@app.post('/login')
+def login():
+    mycursor    = mydb.cursor()
+    username    = request.json['username']
+    password    = request.json['password']
+    response    = []
+    
+    # ===== DATASET IS EXISTS
+    sql = """
+        SELECT * FROM user
+        WHERE USERNAME_USER = '"""+username+"""' AND PASSWORD_USER = '"""+password+"""'
+    """
+    mycursor.execute(sql)
+    result = mycursor.fetchone()
+
+    
+    if result == None:
+        res = {}
+        res['stat'] = "0"
+        res['msg']  = 'Username or Password is wrong'
+        response.append(res)
+
+        return jsonify(response)
+    
+
+    res = {}
+    res['stat'] = "1"
+    res['msg']  = 'Successfully Login'
+
+    res['data'] = {}
+    res['data']['USERNAME_USER']    = result[0]
+    res['data']['NAME_USER']        = result[1]
+    res['data']['EMAIL_USER']       = result[3]
+    
+    response.append(res)
+    return jsonify(response)
+
 @app.route('/upload-profile/<path:filename>') 
 def get_post_pic(filename): 
     return send_from_directory('img/profile/', filename)
