@@ -107,13 +107,9 @@ def get_graph_pic(filename):
 def user_dataset(username):
     mycursor = mydb.cursor()
     sql = """
-            SELECT 
-                d.*, ud.*
-            FROM 
-                user_dataset ud , dataset d 
-            WHERE 
-                ud.USERNAME_USER = '"""+username+"""'
-                AND ud.HASHTAG_DATASET = d.HASHTAG_DATASET 
+            SELECT d.*
+            FROM dataset d 
+            WHERE d.USERNAME_USER = '"""+username+"""'
         """
     mycursor.execute(sql)
 
@@ -127,7 +123,6 @@ def user_dataset(username):
         temp['TOTLIKE_DATASET']     = result[2]
         temp['TOTCOMMENT_DATASET']  = result[3]
         temp['created_at']          = result[4]
-        temp['updated_at']          = result[5]
         temp['IMGINFLUENCER_UD']    = result[10]
         datas.append(temp)
 
@@ -174,26 +169,18 @@ def user_setdataset():
         scrape(hashtag)
     # END DATASET IS EXISTS
     
-    # ===== INSERT USER DATASET
+    # ===== INSERT DATASET
     sql = """
-        SELECT * FROM user_dataset 
-        WHERE USERNAME_USER = '"""+username+"""' AND HASHTAG_DATASET = '"""+hashtag+"""'
+        INSERT INTO dataset (ID_UD, USERNAME_USER, HASHTAG_DATASET, COLOR_UD, IMGINFLUENCER_UD) VALUES (%s, %s, %s, %s, %s)
     """
-    mycursor.execute(sql)
-    result = mycursor.fetchone()
+    r = lambda: random.randint(0,255)
+    color = '#%02X%02X%02X' % (r(),r(),r())
+    
+    values = (id_ud, username, hashtag, color, id_ud)
+    mycursor.execute(sql, values)
+    detectInfluence(hashtag, id_ud)
 
-    if result == None:
-        sql = """
-            INSERT INTO user_dataset (ID_UD, USERNAME_USER, HASHTAG_DATASET, COLOR_UD, IMGINFLUENCER_UD) VALUES (%s, %s, %s, %s, %s)
-        """
-        r = lambda: random.randint(0,255)
-        color = '#%02X%02X%02X' % (r(),r(),r())
-        
-        values = (id_ud, username, hashtag, color, id_ud)
-        mycursor.execute(sql, values)
-        detectInfluence(hashtag, id_ud)
-
-        mydb.commit()
+    mydb.commit()
     # END INSERT USER DATASET
     
     return jsonify("ilham")
@@ -308,10 +295,10 @@ def scrape(hashtag):
     sql = """
         INSERT INTO dataset (
             HASHTAG_DATASET, TOTPOST_DATASET, TOTLIKE_DATASET, 
-            TOTCOMMENT_DATASET, created_at, updated_at
-        ) VALUES (%s, %s, %s, %s, %s, %s)
+            TOTCOMMENT_DATASET, created_at
+        ) VALUES (%s, %s, %s, %s, %s)
     """
-    dataset = (dataset_hashtag, tot_post, tot_like, tot_comment, curr_date.strftime("%Y-%m-%d %H:%M:%S"), curr_date.strftime("%Y-%m-%d %H:%M:%S"))
+    dataset = (dataset_hashtag, tot_post, tot_like, tot_comment, curr_date.strftime("%Y-%m-%d %H:%M:%S"))
     mycursor.execute(sql, dataset)
 
     mydb.commit()
