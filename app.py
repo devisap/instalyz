@@ -155,7 +155,6 @@ def user_setdataset():
     mycursor    = mydb.cursor()
     hashtag     = request.json['hashtag']
     username    = request.json['username']
-    id_ud       = username+"""_"""+hashtag
     
     # ===== DATASET IS EXISTS
     sql = """
@@ -166,19 +165,19 @@ def user_setdataset():
     result = mycursor.fetchone()
 
     if result == None:
-        scrape(hashtag)
+        scrape(username, hashtag)
     # END DATASET IS EXISTS
     
     # ===== INSERT DATASET
-    sql = """
-        INSERT INTO dataset (ID_UD, USERNAME_USER, HASHTAG_DATASET, COLOR_UD, IMGINFLUENCER_UD) VALUES (%s, %s, %s, %s, %s)
-    """
-    r = lambda: random.randint(0,255)
-    color = '#%02X%02X%02X' % (r(),r(),r())
+    # sql = """
+    #     INSERT INTO dataset (ID_UD, USERNAME_USER, HASHTAG_DATASET, COLOR_UD, IMGINFLUENCER_UD) VALUES (%s, %s, %s, %s, %s)
+    # """
+    # r = lambda: random.randint(0,255)
+    # color = '#%02X%02X%02X' % (r(),r(),r())
     
-    values = (id_ud, username, hashtag, color, id_ud)
-    mycursor.execute(sql, values)
-    detectInfluence(hashtag, id_ud)
+    # values = (id_ud, username, hashtag, color, id_ud)
+    # mycursor.execute(sql, values)
+    detectInfluence(username, hashtag)
 
     mydb.commit()
     # END INSERT USER DATASET
@@ -212,8 +211,9 @@ def posts(hashtag):
 
     return jsonify(datas)
 
-@app.route("/scrape/<hashtag>")
-def scrape(hashtag):
+@app.route("/scrape/<username>/<hashtag>")
+def scrape(username, hashtag):
+    id_dataset      = username+"""_"""+hashtag
     dataset_hashtag = hashtag
     hashtag_scrapes = get_data_hashtag(dataset_hashtag)
     hashtag_scrapes = hashtag_scrapes['graphql']['hashtag']['edge_hashtag_to_media']['edges']
@@ -286,6 +286,9 @@ def scrape(hashtag):
             x = x + 1
         except: 
             time.sleep(3)
+
+        if counter == 5:
+            break
         
         counter = counter + 1
 
@@ -295,10 +298,14 @@ def scrape(hashtag):
     sql = """
         INSERT INTO dataset (
             HASHTAG_DATASET, TOTPOST_DATASET, TOTLIKE_DATASET, 
-            TOTCOMMENT_DATASET, created_at
-        ) VALUES (%s, %s, %s, %s, %s)
+            TOTCOMMENT_DATASET, created_at, USERNAME_USER, COLOR_DATASET,
+            IMGINFLUENCER_DATASET, ID_DATASET
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    dataset = (dataset_hashtag, tot_post, tot_like, tot_comment, curr_date.strftime("%Y-%m-%d %H:%M:%S"))
+    r = lambda: random.randint(0,255)
+    color = '#%02X%02X%02X' % (r(),r(),r())
+
+    dataset = (dataset_hashtag, tot_post, tot_like, tot_comment, curr_date.strftime("%Y-%m-%d %H:%M:%S"), username, color, id_dataset, id_dataset)
     mycursor.execute(sql, dataset)
 
     mydb.commit()
@@ -321,12 +328,13 @@ def scrape(hashtag):
     
     return jsonify(list_data)
 
-@app.route("/detectInfluence/<hashtag>/<id_ud>")
-def detectInfluence(hashtag, id_ud):
+@app.route("/detectInfluence/<username>/<hashtag>")
+def detectInfluence(username, hashtag):
+    id_dataset = username+"""_"""+hashtag
     mycursor = mydb.cursor()
     graph = nx.Graph()
     sql = """
-        SELECT USERNAME_DD, LISTTAGGED_DD FROM dataset_detail WHERE HASHTAG_DATASET = '"""+hashtag+"""' AND LISTTAGGED_DD != ""
+        SELECT USERNAME_DD, LISTTAGGED_DD FROM dataset_detail WHERE ID_DATASET = '"""+id_dataset+"""' AND LISTTAGGED_DD != ""
     """
     mycursor.execute(sql)
 
@@ -339,7 +347,7 @@ def detectInfluence(hashtag, id_ud):
     
     plt.figure(figsize = (13, 7))
     nx.draw_networkx(graph)
-    plt.savefig("graph/"+id_ud+".png")
+    plt.savefig("graph/"+id_dataset+".png")
     # plt.show()
 
     most_influental = nx.degree_centrality(graph)
@@ -347,7 +355,7 @@ def detectInfluence(hashtag, id_ud):
     counter = 1
     for w in sorted(most_influental, key = most_influental.get, reverse = True):
         post = []
-        post.append(id_ud)
+        post.append(id_dataset)
         post.append(w)
         post.append(round(most_influental[w],5))
         post = tuple(post)
@@ -363,7 +371,7 @@ def detectInfluence(hashtag, id_ud):
         INSERT INTO 
             influencer
                 (
-                    ID_UD, USERNAME_INFLUENCER, ACCURACY_INFLUENCER
+                    ID_DATASET, USERNAME_INFLUENCER, ACCURACY_INFLUENCER
                 ) 
             VALUES {}
     """.format(values)
