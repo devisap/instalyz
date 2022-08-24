@@ -117,24 +117,27 @@ def user_dataset(username):
     datas   = []
     for result in results:
         temp = {}
-        temp['HASHTAG_UD']          = result[0]
-        temp['COLOR_UD']            = result[9]
-        temp['TOTPOST_DATASET']     = result[1]
-        temp['TOTLIKE_DATASET']     = result[2]
-        temp['TOTCOMMENT_DATASET']  = result[3]
-        temp['created_at']          = result[4]
-        temp['IMGINFLUENCER_UD']    = result[10]
+        temp['HASHTAG_DATASET']         = result[0]
+        temp['TOTPOST_DATASET']         = result[1]
+        temp['TOTLIKE_DATASET']         = result[2]
+        temp['TOTCOMMENT_DATASET']      = result[3]
+        temp['created_at']              = result[4]
+        temp['USERNAME_USER']           = result[5]
+        temp['COLOR_DATASET']           = result[6]
+        temp['IMGINFLUENCER_DATASET']   = result[7]
+        temp['ID_DATASET']              = result[8]
+        temp['ISACTIVE_DATASET']        = result[9]
         datas.append(temp)
 
     return jsonify(datas)
 
-@app.route('/influencer/<id_ud>')
-def influencer(id_ud):
+@app.route('/influencer/<id_dataset>')
+def influencer(id_dataset):
     mycursor = mydb.cursor()
     sql = """
             SELECT *
             FROM influencer i 
-            WHERE i.ID_UD = '"""+id_ud+"""'
+            WHERE i.ID_DATASET = '"""+id_dataset+"""'
         """
     mycursor.execute(sql)
 
@@ -155,39 +158,53 @@ def user_setdataset():
     mycursor    = mydb.cursor()
     hashtag     = request.json['hashtag']
     username    = request.json['username']
+    id_dataset  = username+"""_"""+hashtag
     
     # ===== DATASET IS EXISTS
     sql = """
         SELECT * FROM dataset 
-        WHERE HASHTAG_DATASET = '"""+hashtag+"""'
+        WHERE ID_DATASET = '"""+id_dataset+"""'
     """
     mycursor.execute(sql)
     result = mycursor.fetchone()
 
-    if result == None:
-        scrape(username, hashtag)
-    # END DATASET IS EXISTS
-    
-    # ===== INSERT DATASET
-    # sql = """
-    #     INSERT INTO dataset (ID_UD, USERNAME_USER, HASHTAG_DATASET, COLOR_UD, IMGINFLUENCER_UD) VALUES (%s, %s, %s, %s, %s)
-    # """
-    # r = lambda: random.randint(0,255)
-    # color = '#%02X%02X%02X' % (r(),r(),r())
-    
-    # values = (id_ud, username, hashtag, color, id_ud)
-    # mycursor.execute(sql, values)
-    detectInfluence(username, hashtag)
+    if result != None:
+        user_deldataset(id_dataset)
+
+    scrape(username, hashtag)
+    detectInfluence(id_dataset)
 
     mydb.commit()
-    # END INSERT USER DATASET
-    
-    return jsonify("ilham")
+    return jsonify("success")
 
-@app.route("/posts/<hashtag>")
-def posts(hashtag):
+@app.post('/user-deldataset/<id_dataset>')
+def user_deldataset(id_dataset):
+    mycursor    = mydb.cursor()
+    sql = """
+        DELETE FROM dataset_detail 
+        WHERE ID_DATASET = '"""+id_dataset+"""'
+    """
+    mycursor.execute(sql)
+    
+    sql = """
+        DELETE FROM influencer 
+        WHERE ID_DATASET = '"""+id_dataset+"""'
+    """
+    mycursor.execute(sql)
+
+    sql = """
+        DELETE FROM dataset 
+        WHERE ID_DATASET = '"""+id_dataset+"""'
+    """
+    mycursor.execute(sql)
+
+    mydb.commit()
+    return jsonify("success")
+
+@app.route("/posts/<id_dataset>")
+def posts(id_dataset):
     mycursor = mydb.cursor()
-    sql = "SELECT * FROM dataset_detail WHERE HASHTAG_DATASET = '"+hashtag+"' ORDER BY COUNTLIKE_DD DESC, COUNTCOMMENT_DD DESC"
+    sql = "SELECT * FROM dataset_detail WHERE ID_DATASET = '"+id_dataset+"' ORDER BY COUNTLIKE_DD DESC, COUNTCOMMENT_DD DESC"
     mycursor.execute(sql)
 
     results = mycursor.fetchall()
@@ -195,17 +212,20 @@ def posts(hashtag):
     for result in results:
         temp = {}
         temp['ID_DD']           = result[0]
-        temp['HASHTAG_DATASET'] = result[14]
         temp['SHORTCODE_DD']    = result[1]
-        temp['DISPLAYURL_DD']   = result[3]
         temp['USERNAME_DD']     = result[2]
-        temp['FULLNAME_DD']     = result[11]
-        temp['PROFILEPICT_DD']  = result[9]
-        temp['CAPTION_DD']      = result[10]
-        temp['LISTTAGGED_DD']   = result[7]
-        temp['TAKENAT_DD']      = result[15]
+        temp['DISPLAYURL_DD']   = result[3]
         temp['COUNTLIKE_DD']    = result[4]
         temp['COUNTCOMMENT_DD'] = result[5]
+        temp['LISTTAGGED_DD']   = result[6]
+        temp['PROFILEPICT_DD']  = result[7]
+        temp['CAPTION_DD']      = result[8]
+        temp['FULLNAME_DD']     = result[9]
+        temp['created_at']      = result[10]
+        temp['updated_at']      = result[11]
+        temp['HASHTAG_DATASET'] = result[12]
+        temp['TAKENAT_DD']      = result[13]
+        temp['ID_DATASET']      = result[14]
         
         datas.append(temp)
 
@@ -246,6 +266,7 @@ def scrape(username, hashtag):
                 f.write(r.read())
 
             post = []
+            post.append(id_dataset)
             post.append(dataset_hashtag) 
             post.append(hashtag_scrape['shortcode']) 
             post.append(post_scrape['user']['username']) 
@@ -287,8 +308,8 @@ def scrape(username, hashtag):
         except: 
             time.sleep(3)
 
-        if counter == 5:
-            break
+        # if counter == 5:
+        #     break
         
         counter = counter + 1
 
@@ -305,7 +326,8 @@ def scrape(username, hashtag):
     r = lambda: random.randint(0,255)
     color = '#%02X%02X%02X' % (r(),r(),r())
 
-    dataset = (dataset_hashtag, tot_post, tot_like, tot_comment, curr_date.strftime("%Y-%m-%d %H:%M:%S"), username, color, id_dataset, id_dataset)
+    graph_pic = "graph/"+id_dataset+".png"
+    dataset = (dataset_hashtag, tot_post, tot_like, tot_comment, curr_date.strftime("%Y-%m-%d %H:%M:%S"), username, color, graph_pic, id_dataset)
     mycursor.execute(sql, dataset)
 
     mydb.commit()
@@ -314,7 +336,7 @@ def scrape(username, hashtag):
         INSERT INTO 
             dataset_detail 
                 (
-                    HASHTAG_DATASET, SHORTCODE_DD, USERNAME_DD, 
+                    ID_DATASET, HASHTAG_DATASET, SHORTCODE_DD, USERNAME_DD, 
                     FULLNAME_DD, PROFILEPICT_DD, DISPLAYURL_DD, 
                     COUNTLIKE_DD, COUNTCOMMENT_DD, CAPTION_DD, 
                     TAKENAT_DD, created_at, updated_at, LISTTAGGED_DD
@@ -328,9 +350,8 @@ def scrape(username, hashtag):
     
     return jsonify(list_data)
 
-@app.route("/detectInfluence/<username>/<hashtag>")
-def detectInfluence(username, hashtag):
-    id_dataset = username+"""_"""+hashtag
+@app.route("/detectInfluence/<id_dataset>")
+def detectInfluence(id_dataset):
     mycursor = mydb.cursor()
     graph = nx.Graph()
     sql = """
@@ -380,39 +401,6 @@ def detectInfluence(username, hashtag):
     mydb.commit()
     # return nx.draw(graph, with_labels = True)
     return most_influental
-
-# @app.route('/update-dataset')
-# def update_dataset():
-#     mycursor = mydb.cursor()
-#     sql = """
-#         SELECT * FROM dataset
-#     """
-#     mycursor.execute(sql)
-#     hashtags = mycursor.fetchall()
-#     post_insert = []
-#     post_update = []
-#     for hashtag in hashtags:
-#         hashtag_scrapes = get_data_hashtag(hashtag[0])
-#         hashtag_scrapes = hashtag_scrapes['graphql']['hashtag']['edge_hashtag_to_media']['edges']
-
-#         mycursor = mydb.cursor()
-#         sql = """
-#             SELECT * FROM dataset_detail WHERE HASHTAG_DATASET = '"""+hashtag[0]+"""'
-#         """
-#         mycursor.execute(sql)
-
-#         list_post = mycursor.fetchall()
-#         posts = []
-#         for list in list_post:
-#             posts.append(list[1])
-        
-#         counter = 0
-#         for hashtag_scrape in hashtag_scrapes:
-#             post_scrape = get_data_post(hashtag_scrape['shortcode'])
-
-            
-#             if(hashtag_scrape['shortcode'] in posts[counter]):
-
 
             
 
