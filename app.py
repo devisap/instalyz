@@ -2,9 +2,11 @@
 import mysql.connector, urllib.request, time, json, ssl, random
 import networkx as nx
 import matplotlib.pyplot as plt
+import numpy as np
 from flask import Flask, jsonify, send_from_directory, request
 from scrapper import get_data_hashtag, get_data_post
 from datetime import datetime
+
 
 mydb = mysql.connector.connect(
   host="localhost",
@@ -350,7 +352,7 @@ def scrape(username, hashtag):
     
     return jsonify(list_data)
 
-@app.route("/detectInfluence/<id_dataset>")
+@app.route("/detect-influence/<id_dataset>")
 def detectInfluence(id_dataset):
     mycursor = mydb.cursor()
     graph = nx.Graph()
@@ -366,8 +368,10 @@ def detectInfluence(id_dataset):
         for tag in tags:
             graph.add_edge(list[0], tag)
     
+    pos = nx.spring_layout(graph, k=0.2, iterations=20)
     plt.figure(figsize = (13, 7))
-    nx.draw_networkx(graph)
+    nx.draw(graph, pos=pos)
+    nx.draw_networkx_labels(graph, pos=pos)
     plt.savefig("graph/"+id_dataset+".png")
     # plt.show()
 
@@ -399,7 +403,7 @@ def detectInfluence(id_dataset):
     
     mycursor.execute(sql)
     mydb.commit()
-    # return nx.draw(graph, with_labels = True)
+    return nx.draw(graph, with_labels = True)
     return most_influental
 
             
