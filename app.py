@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from flask import Flask, jsonify, send_from_directory, request
 from scrapper import get_data_hashtag, get_data_post
+from mailer import send
 from datetime import datetime
 
 
@@ -403,14 +404,12 @@ def detectInfluence(id_dataset):
     
     mycursor.execute(sql)
     mydb.commit()
-    return nx.draw(graph, with_labels = True)
     return most_influental
 
-            
-
-
-    
-#     return "success"
+@app.route('/send-email')
+def send_email():
+    send()
+    return "success"
 
 if __name__ == "__main__":
     app.run(debug=True)
