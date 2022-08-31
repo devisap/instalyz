@@ -129,7 +129,7 @@ def user_dataset(username):
         temp['COLOR_DATASET']           = result[6]
         temp['IMGINFLUENCER_DATASET']   = result[7]
         temp['ID_DATASET']              = result[8]
-        temp['ISACTIVE_DATASET']        = result[9]
+        # temp['ISACTIVE_DATASET']        = result[9]
         datas.append(temp)
 
     return jsonify(datas)
@@ -175,7 +175,9 @@ def user_setdataset():
         user_deldataset(id_dataset)
 
     scrape(username, hashtag)
-    detectInfluence(id_dataset)
+    detect_influence(id_dataset)
+    send_email(id_dataset)
+    
 
     mydb.commit()
     return jsonify("success")
@@ -349,12 +351,11 @@ def scrape(username, hashtag):
     
     mycursor.execute(sql)
     mydb.commit()
-
     
-    return jsonify(list_data)
+    return [tot_post, tot_like, tot_comment]
 
 @app.route("/detect-influence/<id_dataset>")
-def detectInfluence(id_dataset):
+def detect_influence(id_dataset):
     mycursor = mydb.cursor()
     graph = nx.Graph()
     sql = """
@@ -406,9 +407,41 @@ def detectInfluence(id_dataset):
     mydb.commit()
     return most_influental
 
-@app.route('/send-email')
-def send_email():
-    send()
+@app.route('/send-email/<id_dataset>')
+def send_email(id_dataset):
+    mycursor = mydb.cursor()
+    sql = """
+            SELECT 
+                u.EMAIL_USER ,
+                u.NAME_USER ,
+                d.HASHTAG_DATASET ,
+                d.TOTPOST_DATASET ,
+                d.TOTLIKE_DATASET ,
+                d.TOTCOMMENT_DATASET ,
+                (
+                    SELECT dd.SHORTCODE_DD 
+                    FROM dataset_detail dd 
+                    WHERE dd.ID_DATASET = '"""+id_dataset+"""'
+                    ORDER BY (dd.COUNTLIKE_DD + dd.COUNTCOMMENT_DD) DESC 
+                    LIMIT 1
+                ) AS TOP_POST ,
+                (
+                    SELECT i.USERNAME_INFLUENCER 
+                    FROM influencer i
+                    WHERE i.ID_DATASET = '"""+id_dataset+"""'
+                    ORDER BY i.ACCURACY_INFLUENCER DESC
+                    LIMIT 1
+                ) AS TOP_INFLUENCER
+            FROM dataset d, `user` u  
+            WHERE 
+                d.ID_DATASET = '"""+id_dataset+"""'
+                AND d.USERNAME_USER = u.USERNAME_USER 
+        """
+    mycursor.execute(sql)
+    dataset = mycursor.fetchone()
+
+    send(dataset)
+
     return "success"
 
 if __name__ == "__main__":
